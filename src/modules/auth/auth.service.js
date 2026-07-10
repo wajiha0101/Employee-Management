@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../../prismaClient");
+const { sendResetCodeEmail } = require("../../mailer");
 
 const registerUser = async (data) => {
   const { name, email, password, role } = data;
@@ -22,6 +23,7 @@ const registerUser = async (data) => {
       role: role || "employee",
     },
   });
+
   return {
     id: user.id,
     name: user.name,
@@ -65,7 +67,7 @@ const loginUser = async (data) => {
 };
 
 const forgotPassword = async (data) => {
-  const { email, newPassword } = data;
+  const { email } = data;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
@@ -74,14 +76,57 @@ const forgotPassword = async (data) => {
     throw error;
   }
 
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+  const expiry = new Date(Date.now() + 15 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { email },
+    data: {
+      resetToken: code,
+      resetTokenExpiry: expiry,
+    },
+  });
+
+  await sendResetCodeEmail(email, code);
+
+  return { message: "A reset code has been sent to your email." };
+};
+
+const resetPassword = async (data) => {
+  const { email, code, newPassword } = data;
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const error = new Error("No account found with this email.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!user.resetToken || user.resetToken !== code) {
+    const error = new Error("Invalid reset code.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+    const error = new Error("Reset code has expired. Please request a new one.");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   await prisma.user.update({
     where: { email },
-    data: { password: hashedPassword },
+    data: {
+      password: hashedPassword,
+      resetToken: null,
+      resetTokenExpiry: null,
+    },
   });
 
-  return { message: "Password updated successfully." };
+  return { message: "Password reset successfully." };
 };
 
 const updateProfile = async (userId, data) => {
@@ -107,8 +152,13 @@ const updateProfile = async (userId, data) => {
 
   return {
     token,
-    user: { id: updatedUser.id, name: updatedUser.name, email: updatedUser.email, role: updatedUser.role },
+    user: {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+    },
   };
 };
 
-module.exports = {registerUser,loginUser,forgotPassword,updateProfile};
+module.exports = {registerUser,loginUser,forgotPassword,resetPassword,updateProfile};
