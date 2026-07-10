@@ -28,6 +28,7 @@ A RESTful backend API for a basic HR Management system, built as part of an inte
 - Consistent error handling with appropriate HTTP status codes
 
 ## Project Structure
+```
 src/
 ├── modules/
 │   ├── auth/
@@ -54,6 +55,7 @@ src/
 ├── mailer.js
 ├── prismaClient.js
 └── server.js
+```
 
 ## Database Schema
 
