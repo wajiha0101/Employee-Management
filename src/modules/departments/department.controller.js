@@ -32,6 +32,9 @@ const createDepartment = async (req, res) => {
 
 const updateDepartment = async (req, res) => {
   try {
+    if (!Number.isInteger(Number(req.params.id))) {
+      return res.status(400).json({ message: "Invalid ID." });
+    }
     const department = await departmentService.updateDepartment(req.params.id, req.body);
     return res.status(200).json({
       message: "Department updated successfully.",
@@ -47,6 +50,9 @@ const updateDepartment = async (req, res) => {
 
 const deleteDepartment = async (req, res) => {
   try {
+    if (!Number.isInteger(Number(req.params.id))) {
+      return res.status(400).json({ message: "Invalid ID." });
+    }
     const result = await departmentService.deleteDepartment(req.params.id);
     return res.status(200).json(result);
   } catch (error) {

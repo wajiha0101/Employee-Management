@@ -36,6 +36,9 @@ const createEmployee = async (req, res) => {
 
 const getEmployeeById = async (req, res) => {
   try {
+    if (!Number.isInteger(Number(req.params.id))) {
+      return res.status(400).json({ message: "Invalid ID." });
+    }
     const employee = await employeeService.getEmployeeById(req.params.id, req.user);
     return res.status(200).json({
       message: "Employee fetched successfully.",
@@ -51,7 +54,10 @@ const getEmployeeById = async (req, res) => {
 
 const updateEmployeeById = async (req, res) => {
   try {
-    const employee = await employeeService.updateEmployeeById(req.params.id, req.body, req.user);
+    if (!Number.isInteger(Number(req.params.id))) {
+      return res.status(400).json({ message: "Invalid ID." });
+    }
+    const employee = await employeeService.updateEmployeeById(req.params.id, req.body);
     return res.status(200).json({
       message: "Employee updated successfully.",
       data: employee,
@@ -66,6 +72,9 @@ const updateEmployeeById = async (req, res) => {
 
 const deleteEmployee = async (req, res) => {
   try {
+    if (!Number.isInteger(Number(req.params.id))) {
+      return res.status(400).json({ message: "Invalid ID." });
+    }
     const result = await employeeService.deleteEmployee(req.params.id);
     return res.status(200).json(result);
   } catch (error) {
@@ -78,6 +87,9 @@ const deleteEmployee = async (req, res) => {
 
 const getEmployeeSalary = async (req, res) => {
   try {
+    if (!Number.isInteger(Number(req.params.id))) {
+      return res.status(400).json({ message: "Invalid ID." });
+    }
     const result = await employeeService.getEmployeeSalary(req.params.id, req.user);
     return res.status(200).json({
       message: "Salary fetched successfully.",

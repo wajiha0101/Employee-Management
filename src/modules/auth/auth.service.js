@@ -1,10 +1,11 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const prisma = require("../../prismaClient");
 const { sendResetCodeEmail } = require("../../mailer");
 
 const registerUser = async (data) => {
-  const { name, email, password, role } = data;
+  const { name, email, password } = data;
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -20,7 +21,7 @@ const registerUser = async (data) => {
       name,
       email,
       password: hashedPassword,
-      role: role || "employee",
+      role: "employee",
     },
   });
 
@@ -76,7 +77,7 @@ const forgotPassword = async (data) => {
     throw error;
   }
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const code = crypto.randomInt(100000, 999999).toString();
 
   const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -103,7 +104,12 @@ const resetPassword = async (data) => {
     throw error;
   }
 
-  if (!user.resetToken || user.resetToken !== code) {
+  const isCodeValid =
+    user.resetToken &&
+    user.resetToken.length === code.length &&
+    crypto.timingSafeEqual(Buffer.from(user.resetToken), Buffer.from(code));
+
+  if (!isCodeValid) {
     const error = new Error("Invalid reset code.");
     error.statusCode = 400;
     throw error;

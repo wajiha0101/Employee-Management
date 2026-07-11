@@ -2,11 +2,16 @@ const prisma = require("../../prismaClient");
 
 
 const getAllEmployees = async (page, limit) => {
-  const skip = (page - 1) * limit;
+  let safeLimit = limit || 10;
+  if (safeLimit > 50) {
+    safeLimit = 50;
+  }
+
+  const skip = (page - 1) * safeLimit;
 
   const employees = await prisma.employee.findMany({
     skip: skip,
-    take: limit,
+    take: safeLimit,
     include: {
       user: { select: { name: true, email: true } },
       department: { select: { name: true } },
@@ -19,7 +24,7 @@ const getAllEmployees = async (page, limit) => {
     employees,
     totalEmployees,
     currentPage: page,
-    totalPages: Math.ceil(totalEmployees / limit),
+    totalPages: Math.ceil(totalEmployees / safeLimit),
   };
 };
 
