@@ -11,6 +11,7 @@ A RESTful backend API for a basic HR Management system, built as part of an inte
 - **Authentication:** JWT (stored in httpOnly cookies)
 - **Validation:** Zod
 - **Password Hashing:** bcrypt
+- - **Rate Limiting:** express-rate-limit
 - **Email Service:** Resend (SMTP-based password reset)
 - **Deployment:** Railway
 
@@ -18,9 +19,11 @@ A RESTful backend API for a basic HR Management system, built as part of an inte
 
 - User registration and login with hashed passwords (bcrypt, 10 salt rounds)
 - JWT-based authentication via httpOnly cookies
-- Role-based access control (`admin`, `employee`)
-- Email-based forgot password flow (6-digit verification code sent to real inbox)
-- Employee CRUD operations with pagination
+- Role-based access control (`admin`, `employee`) — all public registrations default to `employee`; admin accounts must be assigned manually in the database
+- Email-based forgot password flow (6-digit verification code sent to real inbox, generated with Node's `crypto` module)
+- Rate limiting on login and password reset routes to prevent brute-force attempts
+- Employee CRUD operations with pagination (capped at 50 records per request)
+- Input validation on route `:id` parameters
 - Department CRUD operations
 - Self-service profile updates (name/email) for logged-in users
 - Ownership-based access control (employees can only view/manage their own records)
@@ -101,28 +104,35 @@ npm run seed
 ```
 Creates 4 default departments: HR, IT, Finance, Marketing.
 
-### 6. Start the server
+### 6. Create your first admin account
+For security, `/auth/register` always creates users with the `employee` role — it cannot be used to create an admin. To set up your first admin:
+1. Register a normal account via `POST /auth/register`.
+2. Open Prisma Studio: `npx prisma studio --schema=src/prisma/schema.prisma`
+3. In the `User` table, find that account and change its `role` field from `employee` to `admin`.
+
+### 7. Start the server
 ```bash
 npm run dev
 ```
 Server runs at `http://localhost:5000`.
+**Note:** `COOKIE_SECURE` must be set to `true` in production (e.g. Railway), since cookies marked secure only send over https.
 
 ## API Routes
 
 ### Auth
 | Method | Route | Access | Description |
 |---|---|---|---|
-| POST | `/auth/register` | Public | Register a new user |
-| POST | `/auth/login` | Public | Login and receive a JWT cookie |
+| POST | `/auth/register` | Public | Register a new user (always created as `employee`) |
+| POST | `/auth/login` | Public (rate-limited) | Login and receive a JWT cookie |
 | POST | `/auth/logout` | Public | Clear the auth cookie |
-| POST | `/auth/forgot-password` | Public | Request a password reset code via email |
-| POST | `/auth/reset-password` | Public | Submit code + new password to reset |
+| POST | `/auth/forgot-password` | Public (rate-limited) | Request a password reset code via email |
+| POST | `/auth/reset-password` | Public (rate-limited) | Submit code + new password to reset |
 | PUT | `/auth/profile` | Logged-in user | Update own name/email |
 
 ### Employees
 | Method | Route | Access | Description |
 |---|---|---|---|
-| GET | `/employees?page=&limit=` | Admin | List all employees (paginated) |
+| GET | `/employees?page=&limit=` | Admin | List all employees (paginated, max 50 per page) |
 | POST | `/employees` | Admin | Create an employee profile |
 | GET | `/employees/:id` | Admin or owner | View an employee's profile |
 | PUT | `/employees/:id` | Admin | Update salary, position, department |
@@ -142,6 +152,16 @@ Server runs at `http://localhost:5000`.
 - `restrictToLoggedInUserOnly` — verifies the JWT cookie and attaches the decoded user to `req.user`.
 - `restrictTo(...roles)` — a reusable middleware that accepts any number of allowed roles and checks `req.user.role` against them.
 - Ownership checks (e.g., an employee viewing their own record) are enforced at the service layer by comparing `req.user.id` against the record's `userId`, rather than hardcoded into route structure.
+- Public registration always assigns `role: "employee"`, regardless of what's submitted in the request body — admin accounts are assigned manually.
+
+## Security Measures
+
+- Passwords hashed with bcrypt (10 salt rounds)
+- JWT stored in httpOnly cookies (not accessible via JavaScript)
+- Password reset codes generated with Node's `crypto.randomInt` (cryptographically secure) and compared using `crypto.timingSafeEqual`
+- Rate limiting (5 requests / 15 minutes per IP) on login and password reset routes
+- Route `:id` parameters validated as integers before hitting the database
+- Pagination limits capped server-side to prevent excessive data requests
 
 ## Error Handling
 
