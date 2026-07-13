@@ -3,7 +3,7 @@ const prisma = require("../../prismaClient");
 const getAllDepartments = async () => {
   const departments = await prisma.department.findMany({
     include: {
-      employees: {
+      users: {
         select: { id: true, position: true },
       },
     },

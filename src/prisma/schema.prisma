@@ -17,23 +17,15 @@ model User {
   resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
 
-  employee  Employee?
+  departmentId Int?
+  salary       Float?
+  position     String?
+
+  department Department? @relation(fields: [departmentId], references: [id])
 }
 
 model Department {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  employees Employee[]
-}
-
-model Employee {
-  id           Int      @id @default(autoincrement())
-  userId       Int      @unique
-  departmentId Int?
-  salary       Float
-  position     String
-  createdAt    DateTime @default(now())
-
-  user       User        @relation(fields: [userId], references: [id])
-  department Department? @relation(fields: [departmentId], references: [id])
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
 }
