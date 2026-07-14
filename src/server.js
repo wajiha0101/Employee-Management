@@ -13,17 +13,15 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Routes
+
 app.use("/auth", authRoutes);
 app.use("/employees", employeeRoutes);
 app.use("/departments", departmentRoutes);
 
-// Simple health check route
 app.get("/", (req, res) => {
   res.status(200).json({ message: "HR Module API is running." });
 });
 
-// Catch-all for unknown routes
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found." });
 });
